@@ -1,26 +1,105 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Design system colors from .ardot file */
+  --color-bg: #F7F6F3;
+  --color-primary: #2452E8;
+  --color-text-primary: #1A1C1E;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9AA0A6;
+  --color-white: #FFFFFF;
+  --color-border: #EBEAE7;
+  --color-border-light: #F0EFEC;
+  --color-track: #ECEAE6;
+  --color-red: #E5484D;
+  --color-green: #15A06A;
+  --color-amber: #E8833A;
+  --color-amber-bg: #FBE2CC;
+  --color-primary-light: #E8EEFB;
+  --color-primary-blue-bg: #E8EFFF;
+  --color-shadow: rgba(0,0,0,0.04);
+  --color-shadow-md: rgba(10,12,15,0.05);
+  --color-primary-glow: rgba(36,82,232,0.28);
+  --color-primary-glow-sm: rgba(36,82,232,0.25);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--color-bg);
+  --color-primary: var(--color-primary);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-white: var(--color-white);
+  --color-border: var(--color-border);
+  --color-border-light: var(--color-border-light);
+  --color-track: var(--color-track);
+  --color-red: var(--color-red);
+  --color-green: var(--color-green);
+  --color-amber: var(--color-amber);
+  --color-amber-bg: var(--color-amber-bg);
+  --color-primary-light: var(--color-primary-light);
+  --color-primary-blue-bg: var(--color-primary-blue-bg);
+  --color-shadow: var(--color-shadow);
+  --color-shadow-md: var(--color-shadow-md);
+  --color-primary-glow: var(--color-primary-glow);
+  --color-primary-glow-sm: var(--color-primary-glow-sm);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html, body {
+    height: 100%;
+  }
+
+  .font-sans {
+    font-family: "Noto Sans SC", var(--font-geist-sans), sans-serif;
+  }
+
+  .font-mono {
+    font-family: var(--font-geist-mono), "Geist Mono", monospace;
+  }
+
+  .num-font {
+    font-family: var(--font-geist-mono), "Geist Mono", monospace;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Mobile container - full viewport height, internal scroll */
+.phone-frame {
+  width: 100%;
+  height: 100vh;
+  margin: 0 auto;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Hide scrollbar for clean mobile feel */
+.phone-frame::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom shadow utilities */
+.shadow-card {
+  box-shadow: 0 6px 16px rgba(10,12,15,0.05);
+}
+.shadow-nav {
+  box-shadow: 0 8px 20px rgba(10,12,15,0.08);
+}
+.shadow-primary {
+  box-shadow: 0 8px 16px rgba(36,82,232,0.28);
+}
+.shadow-primary-sm {
+  box-shadow: 0 6px 12px rgba(36,82,232,0.25);
+}
+.shadow-primary-lg {
+  box-shadow: 0 12px 24px rgba(36,82,232,0.28);
+}
+
+/* Gradient background for total asset card */
+.gradient-primary {
+  background: linear-gradient(135deg, #1C40BF 0%, #2B6BE8 100%);
 }

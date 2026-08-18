@@ -1,69 +1,181 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import BottomNav from '@/components/BottomNav';
+import { BellIcon, PlusIcon } from '@/components/Icons';
+import { getHomeData } from '@/lib/api';
+import { toHomeOverview, toPortfolioCard } from '@/lib/format';
+import type { PortfolioView, SnapshotView } from '@/lib/api';
+
+export default function HomePage() {
+  const [portfolios, setPortfolios] = useState<PortfolioView[]>([]);
+  const [snapshots, setSnapshots] = useState<(SnapshotView | null)[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getHomeData()
+      .then(({ portfolios, snapshots }) => {
+        setPortfolios(portfolios);
+        setSnapshots(snapshots);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const overview = toHomeOverview(snapshots);
+  const cards = portfolios.map((p, i) => toPortfolioCard(p, snapshots[i]));
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="phone-frame">
+      <div className="flex-1 flex flex-col px-5 pt-5 pb-6 gap-[14px] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <span className="text-[13px] text-[var(--color-text-secondary)]">
+              下午好，明哲
+            </span>
+            <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">
+              投资组合总览
+            </h1>
+          </div>
+          <Link
+            href="/rebalance"
+            className="relative w-11 h-11 rounded-[14px] bg-white border border-[var(--color-border)] flex items-center justify-center"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <BellIcon size={20} className="text-[var(--color-text-primary)]" />
+            <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[var(--color-red)]" />
+          </Link>
         </div>
-      </main>
+
+        {/* Total Asset Card */}
+        <div className="gradient-primary rounded-[20px] px-5 py-5 flex flex-col gap-3 shadow-primary-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] text-[#C9D4F0]">总资产 (元)</span>
+            <div className="px-2.5 h-6 rounded-full bg-white/20 flex items-center gap-1">
+              <span className="text-[10px] text-white/90 font-medium">
+                📈 盘后更新
+              </span>
+            </div>
+          </div>
+          <span className="text-[32px] font-bold text-white font-mono">
+            {loading ? '¥...' : overview.totalAssets}
+          </span>
+          <div className="flex gap-7">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-[#C9D4F0]">今日收益</span>
+              <span className="text-[14px] font-bold text-white font-mono">
+                {overview.todayProfit}
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-[#C9D4F0]">累计收益</span>
+              <span className="text-[14px] font-bold text-white font-mono">
+                {overview.cumulativeProfit}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Today Profit Card */}
+        <div className="rounded-[16px] bg-white px-4 py-4 flex flex-col gap-3 border border-[var(--color-border)] shadow-card">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] text-[var(--color-text-secondary)]">
+              今日收益（盘后更新）
+            </span>
+            <div className="px-2.5 h-[22px] rounded-[11px] bg-[#E9F7EE] flex items-center">
+              <span className="text-[10px] text-[var(--color-green)] font-medium">
+                已更新
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[22px] font-bold text-[var(--color-red)] font-mono">
+                {overview.todayProfit}
+              </span>
+            </div>
+            <span className="text-[15px] font-bold text-[var(--color-red)] font-mono">
+              {overview.todayReturn}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] text-[var(--color-text-secondary)]">
+              持仓收益率
+            </span>
+            <span className="text-[14px] font-bold text-[var(--color-red)] font-mono">
+              {overview.cumulativeRate}
+            </span>
+          </div>
+        </div>
+
+        {/* Portfolio List Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-[16px] font-bold text-[var(--color-text-primary)]">
+            我的组合
+          </h2>
+          <Link
+            href="/create"
+            className="flex items-center gap-1.5 px-3.5 h-[34px] rounded-[17px] bg-[var(--color-primary)] shadow-primary-sm"
+          >
+            <PlusIcon size={16} className="text-white" />
+            <span className="text-[13px] font-semibold text-white">
+              新建组合
+            </span>
+          </Link>
+        </div>
+
+        {/* Portfolio Cards */}
+        {loading ? (
+          <div className="text-center text-[13px] text-[var(--color-text-muted)] py-8">
+            加载中...
+          </div>
+        ) : cards.length === 0 ? (
+          <div className="text-center text-[13px] text-[var(--color-text-muted)] py-8">
+            还没有组合，去新建一个吧
+          </div>
+        ) : (
+          cards.map((p) => (
+            <Link
+              key={p.id}
+              href={`/portfolio/${p.id}`}
+              className="rounded-[16px] bg-white px-4 py-4 flex flex-col gap-2.5 border border-[var(--color-border)] shadow-card"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-bold text-[var(--color-text-primary)]">
+                  {p.name}
+                </span>
+                {p.todayChange ? (
+                  <span className="text-[12px] font-medium text-[var(--color-red)]">
+                    今日 {p.todayChange}
+                  </span>
+                ) : p.hasAlert ? (
+                  <div className="px-2.5 h-[22px] rounded-[11px] bg-[var(--color-amber-bg)] flex items-center">
+                    <span className="text-[10px] text-[var(--color-amber)] font-medium">
+                      偏离风险
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-2 rounded-full bg-[var(--color-track)]">
+                <div
+                  className="h-full rounded-full bg-[var(--color-primary)]"
+                  style={{ width: `${p.completion}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-[var(--color-text-secondary)]">
+                  建仓完成度 {p.completion}%
+                </span>
+                <span className="text-[13px] font-bold text-[var(--color-text-primary)] font-mono">
+                  {p.marketValue}
+                </span>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+      <BottomNav />
     </div>
   );
 }
