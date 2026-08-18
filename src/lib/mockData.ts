@@ -29,29 +29,6 @@ export const portfolios = [
   },
 ];
 
-export const portfolioDetail = {
-  name: "稳健增值组合",
-  completion: 78,
-  todayChange: "+1.9%",
-  marketValue: "¥642,300",
-  totalCost: "¥580,000",
-  totalProfit: "+¥62,300",
-  totalProfitRate: "+10.7%",
-  holdings: [
-    { name: "沪深300ETF", current: 35, target: 30, value: "¥224,805", profit: "+¥18,200", profitRate: "+8.8%" },
-    { name: "标普500ETF", current: 25, target: 25, value: "¥160,575", profit: "+¥12,500", profitRate: "+8.4%" },
-    { name: "科技100ETF", current: 22, target: 20, value: "¥141,306", profit: "+¥15,800", profitRate: "+12.6%" },
-    { name: "债券基金", current: 18, target: 25, value: "¥115,614", profit: "+¥2,300", profitRate: "+2.0%" },
-  ],
-  rebalanceNeeded: true,
-};
-
-export const rebalanceAlerts = [
-  { name: "科技100ETF", current: 22, target: 20, deviation: "+2.0%", status: "overweight" },
-  { name: "债券基金", current: 18, target: 25, deviation: "-7.0%", status: "underweight" },
-  { name: "沪深300ETF", current: 35, target: 30, deviation: "+5.0%", status: "overweight" },
-];
-
 export const profileData = {
   name: "明哲",
   email: "mingzhe@email.com",
@@ -66,23 +43,3 @@ export const profileData = {
   ],
 };
 
-export const adjustHoldings = [
-  {
-    name: "沪深300ETF",
-    currentRatio: 35,
-    targetRatio: 30,
-    deviation: "+5.0%",
-    marketValue: "¥224,805",
-    adjustedRatio: 30,
-    isDeviated: true,
-  },
-  {
-    name: "债券基金",
-    currentRatio: 18,
-    targetRatio: 25,
-    deviation: "-7.0%",
-    marketValue: "¥115,614",
-    adjustedRatio: 25,
-    isDeviated: true,
-  },
-];

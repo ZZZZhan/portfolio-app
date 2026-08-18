@@ -1,26 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
 import { BellIcon, PlusIcon } from '@/components/Icons';
-import { getHomeData } from '@/lib/api';
+import { useHomeData } from '@/lib/api';
 import { toHomeOverview, toPortfolioCard } from '@/lib/format';
-import type { PortfolioView, SnapshotView } from '@/lib/api';
 
 export default function HomePage() {
-  const [portfolios, setPortfolios] = useState<PortfolioView[]>([]);
-  const [snapshots, setSnapshots] = useState<(SnapshotView | null)[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useHomeData();
 
-  useEffect(() => {
-    getHomeData()
-      .then(({ portfolios, snapshots }) => {
-        setPortfolios(portfolios);
-        setSnapshots(snapshots);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const portfolios = data?.portfolios ?? [];
+  const snapshots = data?.snapshots ?? [];
+  const loading = isLoading;
 
   const overview = toHomeOverview(snapshots);
   const cards = portfolios.map((p, i) => toPortfolioCard(p, snapshots[i]));
@@ -38,13 +29,24 @@ export default function HomePage() {
               投资组合总览
             </h1>
           </div>
-          <Link
-            href="/rebalance"
-            className="relative w-11 h-11 rounded-[14px] bg-white border border-[var(--color-border)] flex items-center justify-center"
-          >
-            <BellIcon size={20} className="text-[var(--color-text-primary)]" />
-            <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[var(--color-red)]" />
-          </Link>
+          {(() => {
+            const alertIdx = cards.findIndex((c) => c.hasAlert);
+            const href =
+              alertIdx >= 0
+                ? `/portfolio/${portfolios[alertIdx].id}/rebalance`
+                : `/portfolio`;
+            return (
+              <Link
+                href={href}
+                className="relative w-11 h-11 rounded-[14px] bg-white border border-[var(--color-border)] flex items-center justify-center"
+              >
+                <BellIcon size={20} className="text-[var(--color-text-primary)]" />
+                {alertIdx >= 0 && (
+                  <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[var(--color-red)]" />
+                )}
+              </Link>
+            );
+          })()}
         </div>
 
         {/* Total Asset Card */}

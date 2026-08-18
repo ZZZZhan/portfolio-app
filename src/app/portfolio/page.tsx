@@ -1,24 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import { ChevronLeftIcon, PlusIcon } from "@/components/Icons";
-import { getHomeData } from "@/lib/api";
+import { useHomeData } from "@/lib/api";
 import { toPortfolioCard } from "@/lib/format";
-import type { PortfolioView, SnapshotView } from "@/lib/api";
 
 export default function PortfolioListPage() {
-  const [cards, setCards] = useState<ReturnType<typeof toPortfolioCard>[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useHomeData();
 
-  useEffect(() => {
-    getHomeData()
-      .then(({ portfolios, snapshots }) => {
-        setCards(portfolios.map((p, i) => toPortfolioCard(p, snapshots[i])));
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const portfolios = data?.portfolios ?? [];
+  const snapshots = data?.snapshots ?? [];
+  const cards = portfolios.map((p, i) => toPortfolioCard(p, snapshots[i]));
+  const loading = isLoading;
 
   return (
     <div className="phone-frame">

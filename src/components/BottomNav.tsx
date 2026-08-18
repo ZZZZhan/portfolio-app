@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon, PortfolioIcon, BellIcon, MeIcon } from "./Icons";
+import { HomeIcon, PortfolioIcon, MeIcon } from "./Icons";
 
 const tabs = [
   { href: "/", label: "总览", icon: HomeIcon },
   { href: "/portfolio", label: "组合", icon: PortfolioIcon },
-  { href: "/rebalance", label: "提醒", icon: BellIcon },
   { href: "/profile", label: "我的", icon: MeIcon },
 ];
 

@@ -1,5 +1,10 @@
 // 格式化层：后端数字 → 前端展示字符串（匹配原 mockData 形状）
-import type { HoldingView, SnapshotView, PortfolioView } from "./api";
+import type {
+  HoldingView,
+  SnapshotView,
+  PortfolioView,
+  HoldingDetail,
+} from "./api";
 
 // ¥1,284,650
 export function fmtMoney(n: number): string {
@@ -96,15 +101,37 @@ export function toPortfolioDetail(snap: SnapshotView) {
   };
 }
 
-/** 再平衡提醒页 */
-export function toRebalanceAlerts(snap: SnapshotView) {
+/** 再平衡提醒项（含 holdingId，供跳转录入交易） */
+export interface RebalanceAlert {
+  holdingId: number;
+  symbol: string;
+  name: string;
+  current: number; // 百分比整数
+  target: number; // 百分比整数
+  deviation: string; // 格式化后的偏离度
+  status: "overweight" | "underweight";
+}
+
+/** 再平衡提醒页：合并快照（偏离度） + 持仓骨架（holdingId） */
+export function toRebalanceAlerts(
+  snap: SnapshotView,
+  holdings: HoldingDetail[],
+): RebalanceAlert[] {
+  // 按 symbol 索引持仓骨架，拿 holdingId
+  const holdingBySymbol = new Map(holdings.map((h) => [h.asset.symbol, h]));
   return snap.holdings
     .filter((h) => Math.abs(h.deviation) * 100 > 5)
-    .map((h) => ({
-      name: h.name,
-      current: Math.round(h.currentRatio * 100),
-      target: Math.round(h.targetRatio * 100),
-      deviation: fmtPct(h.deviation),
-      status: h.deviation > 0 ? "overweight" : "underweight",
-    }));
+    .map((h) => {
+      const skeleton = holdingBySymbol.get(h.symbol);
+      return {
+        holdingId: skeleton?.id ?? 0,
+        symbol: h.symbol,
+        name: h.name,
+        current: Math.round(h.currentRatio * 100),
+        target: Math.round(h.targetRatio * 100),
+        deviation: fmtPct(h.deviation),
+        status: h.deviation > 0 ? ("overweight" as const) : ("underweight" as const),
+      };
+    })
+    .filter((a) => a.holdingId !== 0); // 找不到骨架的丢弃（数据不一致）
 }
