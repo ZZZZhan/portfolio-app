@@ -22,9 +22,6 @@ export default function HomePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
-            <span className="text-[13px] text-[var(--color-text-secondary)]">
-              下午好，明哲
-            </span>
             <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">
               投资组合总览
             </h1>
@@ -40,7 +37,10 @@ export default function HomePage() {
                 href={href}
                 className="relative w-11 h-11 rounded-[14px] bg-white border border-[var(--color-border)] flex items-center justify-center"
               >
-                <BellIcon size={20} className="text-[var(--color-text-primary)]" />
+                <BellIcon
+                  size={20}
+                  className="text-[var(--color-text-primary)]"
+                />
                 {alertIdx >= 0 && (
                   <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[var(--color-red)]" />
                 )}

@@ -1,11 +1,8 @@
 // 前端 API 层：调用 portfolio-server 后端
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
-const API_BASE = "/api"; // Next rewrites 代理到 NestJS (localhost:3001)
-
-// 临时写死 userId（M3 接 better-auth 后从 session 取）
-const USER_ID = 1;
+const API_BASE = '/api'; // Next rewrites 代理到 NestJS (localhost:3001)
 
 /** 后端统一响应体（由 TransformInterceptor 包装） */
 interface UnifiedResponse<T> {
@@ -14,11 +11,22 @@ interface UnifiedResponse<T> {
   data: T | null;
 }
 
+let redirectingToLogin = false;
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    cache: "no-store",
+    cache: 'no-store',
+    credentials: 'include', // 携带 better-auth 会话 cookie
   });
+  // 未登录/会话失效：后端全局 AuthGuard 返回 401，统一跳登录页
+  if (res.status === 401 && typeof window !== 'undefined') {
+    if (!redirectingToLogin) {
+      redirectingToLogin = true;
+      window.location.href = '/login';
+    }
+    throw new Error(`401 unauthorized @ ${path}`);
+  }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} @ ${path}`);
   const body = (await res.json()) as UnifiedResponse<T>;
   // 业务错误码非 0 也视为失败（后续可扩展）
@@ -31,13 +39,14 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 // ===== 后端返回类型 =====
 
 /** 资产类型（对齐 Prisma enum AssetType） */
-export type AssetType = "ETF" | "STOCK" | "FUND";
+export type AssetType = 'ETF' | 'STOCK' | 'FUND';
 
 /** 资产搜索结果项（对应后端 GET /portfolio/assets/search） */
 export interface AssetSearchResult {
   symbol: string;
   name: string;
   assetType: AssetType;
+  exchange: string;
 }
 
 /** 新建组合时单条持仓输入（提交 symbol，后端按 symbol upsert Asset） */
@@ -46,6 +55,7 @@ export interface HoldingInput {
   name: string;
   assetType: AssetType;
   targetRatio: number;
+  exchange: string;
   rebalanceThreshold?: number;
 }
 
@@ -84,7 +94,7 @@ export interface SnapshotView {
 
 export interface PortfolioView {
   id: number;
-  userId: number;
+  userId: string; // better-auth user.id 为 string
   name: string;
   targetTotalAmount: string;
   createdAt: string;
@@ -112,9 +122,9 @@ export interface HoldingDetail {
 
 // ===== 交易相关类型 =====
 
-export type TradeType = "EXCHANGE" | "OTC";
-export type TradeDirection = "BUY" | "SELL";
-export type TradeStatus = "COMPLETED" | "PENDING";
+export type TradeType = 'EXCHANGE' | 'OTC';
+export type TradeDirection = 'BUY' | 'SELL';
+export type TradeStatus = 'COMPLETED' | 'PENDING';
 
 /** 交易列表项（含持仓+标的，对应后端 GET /portfolio/:id/trades） */
 export interface TradeView {
@@ -157,21 +167,18 @@ export function searchAssets(keyword: string) {
   );
 }
 
-/** 新建组合 */
-export function createPortfolio(
-  payload: CreatePortfolioPayload,
-  userId = USER_ID,
-) {
-  return fetchJson<{ message: string }>(`/portfolio?userId=${userId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+/** 新建组合（userId 由后端从 session 取，前端不传） */
+export function createPortfolio(payload: CreatePortfolioPayload) {
+  return fetchJson<{ message: string }>(`/portfolio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 }
 
-/** 用户的所有组合 */
-export function getPortfolios(userId = USER_ID) {
-  return fetchJson<PortfolioView[]>(`/portfolio?userId=${userId}`);
+/** 用户的所有组合（userId 由后端从 session 取） */
+export function getPortfolios() {
+  return fetchJson<PortfolioView[]>(`/portfolio`);
 }
 
 /** 组合详情（含持仓+标的，骨架数据，不从快照读） */
@@ -187,37 +194,34 @@ export function getLatestSnapshot(portfolioId: number) {
 /** 触发某组合计算快照并返回结果 */
 export function runSnapshot(portfolioId: number) {
   return fetchJson<SnapshotView>(`/portfolio/${portfolioId}/snapshot`, {
-    method: "POST",
+    method: 'POST',
   });
 }
 
-/** 查某组合下的交易列表 */
-export function getPortfolioTrades(portfolioId: number, userId = USER_ID) {
-  return fetchJson<TradeView[]>(
-    `/portfolio/${portfolioId}/trades?userId=${userId}`,
-  );
+/** 查某组合下的交易列表（userId 由后端从 session 取） */
+export function getPortfolioTrades(portfolioId: number) {
+  return fetchJson<TradeView[]>(`/portfolio/${portfolioId}/trades`);
 }
 
-/** 录入交易（按已有持仓 recording，标的已定；场内录完返回 snapshot，场外 snapshot 为 null） */
+/** 录入交易（按已有持仓 recording，标的已定；userId 由后端从 session 取） */
 export function recordTrade(
   portfolioId: number,
   holdingId: number,
   payload: RecordTradePayload,
-  userId = USER_ID,
 ) {
-  return fetchJson<{ trade: { id: number; status: TradeStatus }; snapshot: SnapshotView | null }>(
-    `/portfolio/${portfolioId}/holdings/${holdingId}/trades?userId=${userId}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
+  return fetchJson<{
+    trade: { id: number; status: TradeStatus };
+    snapshot: SnapshotView | null;
+  }>(`/portfolio/${portfolioId}/holdings/${holdingId}/trades`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 }
 
 /** 首页：组合列表 + 各组合最新快照（聚合） */
-export async function getHomeData(userId = USER_ID) {
-  const portfolios = await getPortfolios(userId);
+export async function getHomeData() {
+  const portfolios = await getPortfolios();
   const snapshots = await Promise.all(
     portfolios.map((p) => getLatestSnapshot(p.id).catch(() => null)),
   );
@@ -228,14 +232,14 @@ export async function getHomeData(userId = USER_ID) {
 
 /** 资产搜索（带 debounce）：返回 { data, isFetching }，空 keyword 不请求 */
 export function useAssetSearch(keyword: string, debounceMs = 300) {
-  const [debounced, setDebounced] = useState("");
+  const [debounced, setDebounced] = useState('');
   useEffect(() => {
-  const t = setTimeout(() => setDebounced(keyword.trim()), debounceMs);
+    const t = setTimeout(() => setDebounced(keyword.trim()), debounceMs);
     return () => clearTimeout(t);
   }, [keyword, debounceMs]);
 
   return useQuery({
-    queryKey: ["assetSearch", debounced],
+    queryKey: ['assetSearch', debounced],
     queryFn: () => searchAssets(debounced),
     enabled: debounced.length > 0,
     staleTime: 60 * 1000, // 同词 60s 内不重复打网
@@ -243,17 +247,17 @@ export function useAssetSearch(keyword: string, debounceMs = 300) {
 }
 
 /** 用户的所有组合 */
-export function usePortfolios(userId = USER_ID) {
+export function usePortfolios() {
   return useQuery({
-    queryKey: ["portfolios", userId],
-    queryFn: () => getPortfolios(userId),
+    queryKey: ['portfolios'],
+    queryFn: () => getPortfolios(),
   });
 }
 
 /** 某组合最新快照 */
 export function useLatestSnapshot(portfolioId: number | null) {
   return useQuery({
-    queryKey: ["snapshot", portfolioId],
+    queryKey: ['snapshot', portfolioId],
     queryFn: () => getLatestSnapshot(portfolioId as number),
     enabled: portfolioId != null,
   });
@@ -262,7 +266,7 @@ export function useLatestSnapshot(portfolioId: number | null) {
 /** 组合详情（持仓骨架） */
 export function usePortfolioDetail(portfolioId: number | null) {
   return useQuery({
-    queryKey: ["portfolio", portfolioId],
+    queryKey: ['portfolio', portfolioId],
     queryFn: () => getPortfolioDetail(portfolioId as number),
     enabled: portfolioId != null,
   });
@@ -271,7 +275,7 @@ export function usePortfolioDetail(portfolioId: number | null) {
 /** 某组合的交易列表 */
 export function usePortfolioTrades(portfolioId: number | null) {
   return useQuery({
-    queryKey: ["trades", portfolioId],
+    queryKey: ['trades', portfolioId],
     queryFn: () => getPortfolioTrades(portfolioId as number),
     enabled: portfolioId != null,
   });
@@ -289,17 +293,17 @@ export function useRecordTrade(portfolioId: number) {
       payload: RecordTradePayload;
     }) => recordTrade(portfolioId, holdingId, payload),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["snapshot", portfolioId] });
-      void qc.invalidateQueries({ queryKey: ["trades", portfolioId] });
-      void qc.invalidateQueries({ queryKey: ["home"] });
+      void qc.invalidateQueries({ queryKey: ['snapshot', portfolioId] });
+      void qc.invalidateQueries({ queryKey: ['trades', portfolioId] });
+      void qc.invalidateQueries({ queryKey: ['home'] });
     },
   });
 }
 
 /** 首页数据：组合列表 + 各组合快照 */
-export function useHomeData(userId = USER_ID) {
+export function useHomeData() {
   return useQuery({
-    queryKey: ["home", userId],
-    queryFn: () => getHomeData(userId),
+    queryKey: ['home'],
+    queryFn: () => getHomeData(),
   });
 }

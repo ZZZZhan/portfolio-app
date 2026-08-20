@@ -1,11 +1,32 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MailIcon, LockIcon, EyeIcon } from "@/components/Icons";
+import { signIn } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const { error } = await signIn.email({ email, password });
+    setLoading(false);
+    if (error) {
+      setError(error.message ?? "登录失败");
+      return;
+    }
+    router.replace("/");
+    router.refresh();
+  }
 
   return (
     <div className="phone-frame">
@@ -20,7 +41,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <div className="w-full flex flex-col gap-[14px]">
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-[14px]">
           {/* Email input */}
           <div className="w-full h-[50px] flex items-center gap-2.5 px-3.5 rounded-[14px] bg-white border border-[var(--color-border)]">
             <div className="text-[var(--color-text-muted)] shrink-0">
@@ -28,7 +49,10 @@ export default function LoginPage() {
             </div>
             <input
               type="email"
+              required
               placeholder="邮箱"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="flex-1 text-[14px] outline-none bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
             />
           </div>
@@ -40,7 +64,10 @@ export default function LoginPage() {
             </div>
             <input
               type={showPassword ? "text" : "password"}
+              required
               placeholder="密码"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="flex-1 text-[14px] outline-none bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
             />
             <button
@@ -52,13 +79,19 @@ export default function LoginPage() {
             </button>
           </div>
 
+          {error && (
+            <p className="text-[12px] text-[var(--color-red)]">{error}</p>
+          )}
+
           {/* Login button */}
-          <Link href="/" className="w-full">
-            <button className="w-full h-[50px] rounded-[14px] bg-[var(--color-primary)] text-white text-[15px] font-semibold shadow-primary flex items-center justify-center">
-              登录
-            </button>
-          </Link>
-        </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-[50px] rounded-[14px] bg-[var(--color-primary)] text-white text-[15px] font-semibold shadow-primary flex items-center justify-center disabled:opacity-60"
+          >
+            {loading ? "登录中..." : "登录"}
+          </button>
+        </form>
 
         {/* Other actions */}
         <div className="flex items-center gap-5">

@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronLeftIcon } from "@/components/Icons";
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ChevronLeftIcon } from '@/components/Icons';
 import {
   useAssetSearch,
   createPortfolio,
   type AssetSearchResult,
   type HoldingInput,
-} from "@/lib/api";
+} from '@/lib/api';
 
 /** 选中的持仓行 = 搜索结果 + 配比 */
 interface HoldingRow extends AssetSearchResult {
@@ -18,12 +18,12 @@ interface HoldingRow extends AssetSearchResult {
 
 export default function CreatePortfolioPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [targetTotalAmount, setTargetTotalAmount] = useState("");
+  const [name, setName] = useState('');
+  const [targetTotalAmount, setTargetTotalAmount] = useState('');
   const [holdings, setHoldings] = useState<HoldingRow[]>([]);
 
   // 搜索输入 + 候选下拉
-  const [keyword, setKeyword] = useState("");
+  const [keyword, setKeyword] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const search = useAssetSearch(keyword);
 
@@ -32,7 +32,7 @@ export default function CreatePortfolioPage() {
 
   const total = holdings.reduce((s, h) => s + h.targetRatio, 0);
   const totalColor =
-    total === 100 ? "text-[var(--color-green)]" : "text-[var(--color-red)]";
+    total === 100 ? 'text-[var(--color-green)]' : 'text-[var(--color-red)]';
 
   const canSubmit =
     total === 100 &&
@@ -44,7 +44,7 @@ export default function CreatePortfolioPage() {
   function addHolding(item: AssetSearchResult) {
     // 去重：同 symbol 不重复加
     if (holdings.some((h) => h.symbol === item.symbol)) {
-      setKeyword("");
+      setKeyword('');
       setShowDropdown(false);
       return;
     }
@@ -53,7 +53,7 @@ export default function CreatePortfolioPage() {
       // 新增标的配比留空（0），由用户自行输入
       { ...item, targetRatio: 0 },
     ]);
-    setKeyword("");
+    setKeyword('');
     setShowDropdown(false);
   }
 
@@ -64,7 +64,9 @@ export default function CreatePortfolioPage() {
   function updateRatio(symbol: string, ratio: number) {
     const clamped = Math.max(0, Math.min(100, ratio));
     setHoldings((prev) =>
-      prev.map((h) => (h.symbol === symbol ? { ...h, targetRatio: clamped } : h)),
+      prev.map((h) =>
+        h.symbol === symbol ? { ...h, targetRatio: clamped } : h,
+      ),
     );
   }
 
@@ -77,6 +79,7 @@ export default function CreatePortfolioPage() {
         symbol: h.symbol,
         name: h.name,
         assetType: h.assetType,
+        exchange: h.exchange,
         targetRatio: h.targetRatio,
       }));
       await createPortfolio({
@@ -84,7 +87,7 @@ export default function CreatePortfolioPage() {
         targetTotalAmount: Number(targetTotalAmount),
         holdings: payload,
       });
-      router.push("/");
+      router.push('/');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -100,13 +103,22 @@ export default function CreatePortfolioPage() {
         {/* Nav */}
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <ChevronLeftIcon size={20} className="text-[var(--color-text-primary)]" />
-            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">返回</span>
+            <ChevronLeftIcon
+              size={20}
+              className="text-[var(--color-text-primary)]"
+            />
+            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+              返回
+            </span>
           </Link>
-          <span className="text-[14px] font-semibold text-[var(--color-text-muted)]">完成</span>
+          <span className="text-[14px] font-semibold text-[var(--color-text-muted)]">
+            完成
+          </span>
         </div>
 
-        <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">创建自定义组合</h1>
+        <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">
+          创建自定义组合
+        </h1>
 
         {/* Portfolio name */}
         <div className="rounded-[14px] bg-white px-4 h-[52px] flex items-center border border-[var(--color-border)]">
@@ -129,14 +141,20 @@ export default function CreatePortfolioPage() {
             placeholder="目标总投入金额（元）"
             className="flex-1 text-[15px] outline-none bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
           />
-          <span className="text-[14px] text-[var(--color-text-muted)] ml-2">元</span>
+          <span className="text-[14px] text-[var(--color-text-muted)] ml-2">
+            元
+          </span>
         </div>
 
         {/* Asset allocation */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">目标配比</span>
-            <span className={`text-[15px] font-bold font-mono ${totalColor}`}>{total}%</span>
+            <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+              目标配比
+            </span>
+            <span className={`text-[15px] font-bold font-mono ${totalColor}`}>
+              {total}%
+            </span>
           </div>
 
           {/* 搜索输入框 */}
@@ -156,9 +174,13 @@ export default function CreatePortfolioPage() {
             {showDropdown && keyword.trim().length > 0 && (
               <div className="absolute z-10 mt-1 w-full rounded-[12px] bg-white border border-[var(--color-border)] shadow-lg overflow-hidden max-h-[240px] overflow-y-auto">
                 {search.isFetching ? (
-                  <div className="px-4 py-3 text-[13px] text-[var(--color-text-muted)]">搜索中…</div>
+                  <div className="px-4 py-3 text-[13px] text-[var(--color-text-muted)]">
+                    搜索中…
+                  </div>
                 ) : candidates.length === 0 ? (
-                  <div className="px-4 py-3 text-[13px] text-[var(--color-text-muted)]">未找到标的</div>
+                  <div className="px-4 py-3 text-[13px] text-[var(--color-text-muted)]">
+                    未找到标的
+                  </div>
                 ) : (
                   candidates.map((c) => (
                     <button
@@ -170,8 +192,12 @@ export default function CreatePortfolioPage() {
                       className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--color-primary-blue-bg)] text-left border-b border-[var(--color-border)] last:border-b-0"
                     >
                       <div className="flex flex-col">
-                        <span className="text-[14px] font-medium text-[var(--color-text-primary)]">{c.name}</span>
-                        <span className="text-[11px] text-[var(--color-text-muted)]">{c.symbol}</span>
+                        <span className="text-[14px] font-medium text-[var(--color-text-primary)]">
+                          {c.name}
+                        </span>
+                        <span className="text-[11px] text-[var(--color-text-muted)]">
+                          {c.symbol}
+                        </span>
                       </div>
                       <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--color-track)] text-[var(--color-text-muted)]">
                         {c.assetType}
@@ -185,10 +211,17 @@ export default function CreatePortfolioPage() {
 
           {/* 已选持仓列表 */}
           {holdings.map((h) => (
-            <div key={h.symbol} className="rounded-[12px] bg-white px-4 py-3 flex items-center justify-between gap-3 border border-[var(--color-border)]">
+            <div
+              key={h.symbol}
+              className="rounded-[12px] bg-white px-4 py-3 flex items-center justify-between gap-3 border border-[var(--color-border)]"
+            >
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">{h.name}</span>
-                <span className="text-[11px] text-[var(--color-text-muted)]">{h.symbol} · {h.assetType}</span>
+                <span className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">
+                  {h.name}
+                </span>
+                <span className="text-[11px] text-[var(--color-text-muted)]">
+                  {h.symbol} · {h.assetType}
+                </span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <div className="flex items-center rounded-[8px] bg-[var(--color-track)] px-2 h-[32px]">
@@ -197,11 +230,15 @@ export default function CreatePortfolioPage() {
                     min="0"
                     max="100"
                     value={h.targetRatio}
-                    onChange={(e) => updateRatio(h.symbol, parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      updateRatio(h.symbol, parseInt(e.target.value) || 0)
+                    }
                     className="w-14 text-right text-[15px] font-mono font-bold text-[var(--color-primary)] outline-none bg-transparent"
                     aria-label={`${h.name} 目标配比`}
                   />
-                  <span className="text-[13px] text-[var(--color-text-muted)] ml-0.5">%</span>
+                  <span className="text-[13px] text-[var(--color-text-muted)] ml-0.5">
+                    %
+                  </span>
                 </div>
                 <button
                   onClick={() => removeHolding(h.symbol)}
@@ -216,26 +253,34 @@ export default function CreatePortfolioPage() {
 
           {holdings.length === 0 ? (
             <div className="rounded-[12px] bg-white px-4 py-6 flex items-center justify-center border border-dashed border-[var(--color-border)]">
-              <span className="text-[13px] text-[var(--color-text-muted)]">上方搜索并添加标的</span>
+              <span className="text-[13px] text-[var(--color-text-muted)]">
+                上方搜索并添加标的
+              </span>
             </div>
           ) : null}
 
           {/* Progress bar */}
           <div className="relative w-full h-1.5 rounded-full bg-[var(--color-track)]">
             <div
-              className={`h-full rounded-full ${total === 100 ? "bg-[var(--color-green)]" : "bg-[var(--color-amber)]"}`}
+              className={`h-full rounded-full ${total === 100 ? 'bg-[var(--color-green)]' : 'bg-[var(--color-amber)]'}`}
               style={{ width: `${Math.min(total, 100)}%` }}
             />
           </div>
           {total === 100 ? (
-            <span className="text-[12px] text-[var(--color-green)]">配比合规 ✓</span>
+            <span className="text-[12px] text-[var(--color-green)]">
+              配比合规 ✓
+            </span>
           ) : (
-            <span className="text-[12px] text-[var(--color-amber)]">需调整至100%（当前 {total}%）</span>
+            <span className="text-[12px] text-[var(--color-amber)]">
+              需调整至100%（当前 {total}%）
+            </span>
           )}
         </div>
 
         {error && (
-          <span className="text-[12px] text-[var(--color-red)]">创建失败：{error}</span>
+          <span className="text-[12px] text-[var(--color-red)]">
+            创建失败：{error}
+          </span>
         )}
 
         {/* Create button */}
@@ -244,7 +289,7 @@ export default function CreatePortfolioPage() {
           disabled={!canSubmit}
           className="w-full h-[50px] rounded-[14px] bg-[var(--color-primary)] text-white text-[15px] font-semibold shadow-primary flex items-center justify-center disabled:opacity-40 disabled:shadow-none"
         >
-          {submitting ? "创建中…" : "创建组合"}
+          {submitting ? '创建中…' : '创建组合'}
         </button>
       </div>
     </div>
