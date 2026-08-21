@@ -34,9 +34,9 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">
           <div className="w-16 h-16 rounded-[18px] bg-[var(--color-primary)] flex items-center justify-center shadow-primary">
-            <span className="text-white font-bold text-[30px] font-mono">W</span>
+            <span className="text-white font-bold text-[30px] font-mono">I</span>
           </div>
-          <h1 className="text-[20px] font-bold text-[var(--color-text-primary)]">WorkBuddy 投管</h1>
+          <h1 className="text-[20px] font-bold text-[var(--color-text-primary)]">InvestBuddy</h1>
           <p className="text-[13px] text-[var(--color-text-muted)]">智能投资组合管理</p>
         </div>
 

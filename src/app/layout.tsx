@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WorkBuddy 投管 - 智能投资组合管理",
+  title: "InvestBuddy - 智能投资组合管理",
   description: "智能投资组合管理应用",
 };
 

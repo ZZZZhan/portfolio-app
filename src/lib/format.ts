@@ -62,11 +62,19 @@ export function toHomeOverview(snapshots: (SnapshotView | null)[]) {
     0,
   );
   const rate = totalCost > 0 ? totalPnl / totalCost : 0;
+  // 今日收益 = 各组合 今日市值 − 昨日市值 的合计；
+  // 今日收益率 = 今日收益 / 昨日总市值（昨日市值 = 今日市值 − 今日收益）
+  const todayPnl = snapshots.reduce(
+    (s, x) => s + (x?.todayProfit ?? 0),
+    0,
+  );
+  const yesterdayAssets = totalAssets - todayPnl;
+  const todayRate = yesterdayAssets > 0 ? todayPnl / yesterdayAssets : 0;
   return {
     totalAssets: fmtMoney(totalAssets),
-    todayProfit: fmtSignedMoney(0), // M2 暂无今日收益（需昨日快照）
-    todayProfitRate: "+0.00%",
-    todayReturn: fmtPct(0),
+    todayProfit: fmtSignedMoney(todayPnl),
+    todayProfitRate: fmtPct(todayRate),
+    todayReturn: fmtPct(todayRate),
     cumulativeProfit: fmtSignedMoney(totalPnl),
     cumulativeRate: fmtPct(rate),
     updated: true,
