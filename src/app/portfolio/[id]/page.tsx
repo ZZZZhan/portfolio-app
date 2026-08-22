@@ -1,13 +1,23 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
-import { ChevronLeftIcon, AlertIcon } from "@/components/Icons";
+import SwipeActions, { type SwipeAction } from "@/components/SwipeActions";
+import ThresholdSheet from "@/components/ThresholdSheet";
+import {
+  ChevronLeftIcon,
+  AlertIcon,
+  PlusIcon,
+  MinusIcon,
+  ScaleIcon,
+} from "@/components/Icons";
 import {
   usePortfolioDetail,
   useLatestSnapshot,
   usePortfolioTrades,
+  type HoldingDetail,
 } from "@/lib/api";
 import {
   toPortfolioDetail,
@@ -23,6 +33,14 @@ export default function PortfolioDetailPage({
 }) {
   const { id } = use(params);
   const portfolioId = Number(id);
+  const router = useRouter();
+
+  // 左滑：同一时刻只展开一行
+  const [openSwipeId, setOpenSwipeId] = useState<number | null>(null);
+  // 正在编辑阈值的持仓（null 表示弹层关闭）
+  const [thresholdTarget, setThresholdTarget] = useState<HoldingDetail | null>(
+    null,
+  );
 
   // 持仓骨架（建组合时已定，必有数据）—— 不依赖快照
   const { data: portfolio, isLoading: loadingPortfolio } =
@@ -136,6 +154,9 @@ export default function PortfolioDetailPage({
           <h2 className="text-[16px] font-bold text-[var(--color-text-primary)]">持仓明细</h2>
           <span className="text-[12px] text-[var(--color-text-muted)]">当前 / 目标</span>
         </div>
+        <span className="text-[11px] text-[var(--color-text-muted)] -mt-2">
+          左滑持仓可加仓 / 减仓 / 改阈值
+        </span>
 
         {portfolio.holdings.map((h) => {
           const sh = snapBySymbol.get(h.asset.symbol);
@@ -156,52 +177,71 @@ export default function PortfolioDetailPage({
           }).toString();
           const tradeHref = `/portfolio/${portfolioId}/add-trade?${tradeQs}`;
 
+          const actions: SwipeAction[] = [
+            {
+              key: "buy",
+              label: "加仓",
+              bg: "var(--color-red)",
+              icon: <PlusIcon size={18} />,
+              onSelect: () => router.push(`${tradeHref}&direction=BUY`),
+            },
+            {
+              key: "sell",
+              label: "减仓",
+              bg: "var(--color-green)",
+              icon: <MinusIcon size={18} />,
+              onSelect: () => router.push(`${tradeHref}&direction=SELL`),
+            },
+            {
+              key: "threshold",
+              label: "改阈值",
+              bg: "var(--color-amber)",
+              icon: <ScaleIcon size={18} />,
+              onSelect: () => setThresholdTarget(h),
+            },
+          ];
+
           return (
-            <div key={h.id} className="rounded-[14px] bg-white px-4 py-3.5 flex flex-col gap-2 border border-[var(--color-border)] shadow-card">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">{h.asset.name}</span>
-                  <span className="text-[11px] text-[var(--color-text-muted)]">{h.asset.symbol} · {h.asset.type}</span>
+            <SwipeActions
+              key={h.id}
+              actions={actions}
+              open={openSwipeId === h.id}
+              onOpenChange={(next) => setOpenSwipeId(next ? h.id : null)}
+              // 圆角与边框由 SwipeActions 外层统一承担：内容卡若自带圆角，
+              // 展开时右侧圆角会和操作区之间漏出底色缺口。
+              className="border border-[var(--color-border)]"
+            >
+              <div className="bg-white px-4 py-3.5 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[15px] font-medium text-[var(--color-text-primary)]">{h.asset.name}</span>
+                    <span className="text-[11px] text-[var(--color-text-muted)]">{h.asset.symbol} · {h.asset.type}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-[var(--color-text-muted)]">{current}%</span>
+                    <span className="text-[11px] text-[var(--color-text-muted)]">/ {target}%</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-[var(--color-text-muted)]">{current}%</span>
-                  <span className="text-[11px] text-[var(--color-text-muted)]">/ {target}%</span>
+                {/* Mini progress bar */}
+                <div className="relative w-full h-1.5 rounded-full bg-[var(--color-track)]">
+                  <div
+                    className="absolute h-full rounded-full bg-[var(--color-primary)]"
+                    style={{ width: `${Math.min(current, 100)}%` }}
+                  />
+                  <div
+                    className="absolute top-[-2px] w-[5px] h-[5px] rounded-full bg-[var(--color-amber)]"
+                    style={{ left: `${Math.min(target, 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-mono font-bold text-[var(--color-text-primary)]">{value}</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[12px] font-mono text-[var(--color-red)]">{profit}</span>
+                    <span className="text-[10px] font-mono text-[var(--color-red)]">{profitRate}</span>
+                  </div>
                 </div>
               </div>
-              {/* Mini progress bar */}
-              <div className="relative w-full h-1.5 rounded-full bg-[var(--color-track)]">
-                <div
-                  className="absolute h-full rounded-full bg-[var(--color-primary)]"
-                  style={{ width: `${Math.min(current, 100)}%` }}
-                />
-                <div
-                  className="absolute top-[-2px] w-[5px] h-[5px] rounded-full bg-[var(--color-amber)]"
-                  style={{ left: `${Math.min(target, 100)}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-mono font-bold text-[var(--color-text-primary)]">{value}</span>
-                <div className="flex flex-col items-end">
-                  <span className="text-[12px] font-mono text-[var(--color-red)]">{profit}</span>
-                  <span className="text-[10px] font-mono text-[var(--color-red)]">{profitRate}</span>
-                </div>
-              </div>
-              {/* 加仓 / 减仓 */}
-              <div className="flex gap-2 pt-1 border-t border-[var(--color-border)]">
-                <Link
-                  href={`${tradeHref}&direction=BUY`}
-                  className="flex-1 h-[34px] rounded-[8px] bg-[var(--color-red)] text-white text-[13px] font-semibold flex items-center justify-center"
-                >
-                  加仓
-                </Link>
-                <Link
-                  href={`${tradeHref}&direction=SELL`}
-                  className="flex-1 h-[34px] rounded-[8px] bg-[var(--color-green)] text-white text-[13px] font-semibold flex items-center justify-center"
-                >
-                  减仓
-                </Link>
-              </div>
-            </div>
+            </SwipeActions>
           );
         })}
 
@@ -237,6 +277,20 @@ export default function PortfolioDetailPage({
         )}
       </div>
       <BottomNav />
+
+      {thresholdTarget && (
+        <ThresholdSheet
+          assetName={thresholdTarget.asset.name}
+          value={Number(thresholdTarget.rebalanceThreshold)}
+          onClose={() => setThresholdTarget(null)}
+          onSave={() => {
+            // TODO: 后端尚无更新持仓阈值的接口。
+            // 需要 PATCH /portfolio/:id/holdings/:holdingId { rebalanceThreshold }，
+            // 前端再补 useUpdateHolding，成功后失效 ['portfolio', id] 与 ['snapshot', id]。
+            setThresholdTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }
