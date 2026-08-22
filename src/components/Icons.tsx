@@ -89,7 +89,7 @@ export const ShieldIcon = ({ className = "", size = 20 }: IconProps) => (
 
 export const ScaleIcon = ({ className = "", size = 20 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-    <path d="M12 3v18M5 8h14M5 8l-2 6a4 4 0 0 0 8 0L9 8M19 8l-2 6a4 4 0 0 0 8 0L23 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12 4v17M8 21h8M5 7h14M6 7l-3 6a3 3 0 0 0 6 0L6 7M18 7l-3 6a3 3 0 0 0 6 0L18 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
