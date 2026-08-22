@@ -11,10 +11,14 @@ import {
   type HoldingInput,
 } from '@/lib/api';
 
-/** 选中的持仓行 = 搜索结果 + 配比 */
+/** 选中的持仓行 = 搜索结果 + 配比 + 再平衡阈值 */
 interface HoldingRow extends AssetSearchResult {
   targetRatio: number;
+  rebalanceThreshold: number;
 }
+
+/** 偏离阈值默认值 %（与后端 create 时的兜底一致） */
+const DEFAULT_REBALANCE_THRESHOLD = 5;
 
 export default function CreatePortfolioPage() {
   const router = useRouter();
@@ -50,8 +54,8 @@ export default function CreatePortfolioPage() {
     }
     setHoldings((prev) => [
       ...prev,
-      // 新增标的配比留空（0），由用户自行输入
-      { ...item, targetRatio: 0 },
+      // 新增标的配比留空（0），由用户自行输入；阈值给默认值
+      { ...item, targetRatio: 0, rebalanceThreshold: DEFAULT_REBALANCE_THRESHOLD },
     ]);
     setKeyword('');
     setShowDropdown(false);
@@ -70,6 +74,15 @@ export default function CreatePortfolioPage() {
     );
   }
 
+  function updateThreshold(symbol: string, threshold: number) {
+    const clamped = Math.max(0, Math.min(100, threshold));
+    setHoldings((prev) =>
+      prev.map((h) =>
+        h.symbol === symbol ? { ...h, rebalanceThreshold: clamped } : h,
+      ),
+    );
+  }
+
   async function handleSubmit() {
     if (!canSubmit) return;
     setError(null);
@@ -81,6 +94,7 @@ export default function CreatePortfolioPage() {
         assetType: h.assetType,
         exchange: h.exchange,
         targetRatio: h.targetRatio,
+        rebalanceThreshold: h.rebalanceThreshold,
       }));
       await createPortfolio({
         name: name.trim(),
@@ -213,40 +227,66 @@ export default function CreatePortfolioPage() {
           {holdings.map((h) => (
             <div
               key={h.symbol}
-              className="rounded-[12px] bg-white px-4 py-3 flex items-center justify-between gap-3 border border-[var(--color-border)]"
+              className="rounded-[12px] bg-white px-4 py-3 flex flex-col gap-2 border border-[var(--color-border)]"
             >
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">
-                  {h.name}
-                </span>
-                <span className="text-[11px] text-[var(--color-text-muted)]">
-                  {h.symbol} · {h.assetType}
-                </span>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">
+                    {h.name}
+                  </span>
+                  <span className="text-[11px] text-[var(--color-text-muted)]">
+                    {h.symbol} · {h.assetType}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center rounded-[8px] bg-[var(--color-track)] px-2 h-[32px]">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={h.targetRatio}
+                      onChange={(e) =>
+                        updateRatio(h.symbol, parseInt(e.target.value) || 0)
+                      }
+                      className="w-14 text-right text-[15px] font-mono font-bold text-[var(--color-primary)] outline-none bg-transparent"
+                      aria-label={`${h.name} 目标配比`}
+                    />
+                    <span className="text-[13px] text-[var(--color-text-muted)] ml-0.5">
+                      %
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => removeHolding(h.symbol)}
+                    className="ml-1 w-6 h-6 flex items-center justify-center rounded-full text-[16px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-red)] hover:bg-[var(--color-primary-blue-bg)]"
+                    aria-label={`移除 ${h.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <div className="flex items-center rounded-[8px] bg-[var(--color-track)] px-2 h-[32px]">
+
+              {/* 偏离阈值：超过则提醒再平衡（右侧留出删除按钮宽度以与配比框对齐） */}
+              <div className="flex items-center justify-between pr-[32px]">
+                <span className="text-[12px] text-[var(--color-text-muted)]">
+                  偏离阈值 ±
+                </span>
+                <div className="flex items-center rounded-[8px] bg-[var(--color-track)] px-2 h-[32px] shrink-0">
                   <input
                     type="number"
                     min="0"
                     max="100"
-                    value={h.targetRatio}
+                    step="0.5"
+                    value={h.rebalanceThreshold}
                     onChange={(e) =>
-                      updateRatio(h.symbol, parseInt(e.target.value) || 0)
+                      updateThreshold(h.symbol, parseFloat(e.target.value) || 0)
                     }
-                    className="w-14 text-right text-[15px] font-mono font-bold text-[var(--color-primary)] outline-none bg-transparent"
-                    aria-label={`${h.name} 目标配比`}
+                    className="w-14 text-right text-[15px] font-mono font-bold text-[var(--color-text-primary)] outline-none bg-transparent"
+                    aria-label={`${h.name} 再平衡偏离阈值`}
                   />
                   <span className="text-[13px] text-[var(--color-text-muted)] ml-0.5">
                     %
                   </span>
                 </div>
-                <button
-                  onClick={() => removeHolding(h.symbol)}
-                  className="ml-1 w-6 h-6 flex items-center justify-center rounded-full text-[16px] leading-none text-[var(--color-text-muted)] hover:text-[var(--color-red)] hover:bg-[var(--color-primary-blue-bg)]"
-                  aria-label={`移除 ${h.name}`}
-                >
-                  ×
-                </button>
               </div>
             </div>
           ))}
