@@ -17,6 +17,7 @@ import {
   usePortfolioDetail,
   useLatestSnapshot,
   usePortfolioTrades,
+  useUpdateHoldingThreshold,
   type HoldingDetail,
 } from "@/lib/api";
 import {
@@ -41,6 +42,7 @@ export default function PortfolioDetailPage({
   const [thresholdTarget, setThresholdTarget] = useState<HoldingDetail | null>(
     null,
   );
+  const updateThreshold = useUpdateHoldingThreshold(portfolioId);
 
   // 持仓骨架（建组合时已定，必有数据）—— 不依赖快照
   const { data: portfolio, isLoading: loadingPortfolio } =
@@ -282,13 +284,21 @@ export default function PortfolioDetailPage({
         <ThresholdSheet
           assetName={thresholdTarget.asset.name}
           value={Number(thresholdTarget.rebalanceThreshold)}
-          onClose={() => setThresholdTarget(null)}
-          onSave={() => {
-            // TODO: 后端尚无更新持仓阈值的接口。
-            // 需要 PATCH /portfolio/:id/holdings/:holdingId { rebalanceThreshold }，
-            // 前端再补 useUpdateHolding，成功后失效 ['portfolio', id] 与 ['snapshot', id]。
+          saving={updateThreshold.isPending}
+          error={updateThreshold.error?.message ?? null}
+          onClose={() => {
+            updateThreshold.reset(); // 清掉上次的错误，下次开弹层是干净的
             setThresholdTarget(null);
           }}
+          onSave={(threshold) =>
+            updateThreshold.mutate(
+              {
+                holdingId: thresholdTarget.id,
+                rebalanceThreshold: threshold,
+              },
+              { onSuccess: () => setThresholdTarget(null) },
+            )
+          }
         />
       )}
     </div>

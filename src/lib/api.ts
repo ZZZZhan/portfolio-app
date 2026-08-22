@@ -219,6 +219,22 @@ export function recordTrade(
   });
 }
 
+/** 改单条持仓的偏离阈值（userId 由后端从 session 取） */
+export function updateHoldingThreshold(
+  portfolioId: number,
+  holdingId: number,
+  rebalanceThreshold: number,
+) {
+  return fetchJson<HoldingDetail>(
+    `/portfolio/${portfolioId}/holdings/${holdingId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rebalanceThreshold }),
+    },
+  );
+}
+
 /** 首页：组合列表 + 各组合最新快照（聚合） */
 export async function getHomeData() {
   const portfolios = await getPortfolios();
@@ -296,6 +312,27 @@ export function useRecordTrade(portfolioId: number) {
       void qc.invalidateQueries({ queryKey: ['snapshot', portfolioId] });
       void qc.invalidateQueries({ queryKey: ['trades', portfolioId] });
       void qc.invalidateQueries({ queryKey: ['home'] });
+    },
+  });
+}
+
+/**
+ * 改持仓偏离阈值：只失效组合详情缓存。
+ *
+ * 不用动 ['snapshot']——阈值不进快照，后端提醒时才实时读 Holding.rebalanceThreshold。
+ */
+export function useUpdateHoldingThreshold(portfolioId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      holdingId,
+      rebalanceThreshold,
+    }: {
+      holdingId: number;
+      rebalanceThreshold: number;
+    }) => updateHoldingThreshold(portfolioId, holdingId, rebalanceThreshold),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['portfolio', portfolioId] });
     },
   });
 }

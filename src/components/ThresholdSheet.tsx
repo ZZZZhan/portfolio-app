@@ -13,12 +13,18 @@ const PRESETS = [3, 5, 8, 10];
 export default function ThresholdSheet({
   assetName,
   value,
+  saving = false,
+  error = null,
   onClose,
   onSave,
 }: {
   assetName: string;
   /** 当前阈值 %（后端 Decimal 序列化为字符串，调用方转好数字传进来） */
   value: number;
+  /** 保存请求进行中：禁用按钮，避免重复提交 */
+  saving?: boolean;
+  /** 保存失败的原因，null 表示无错误 */
+  error?: string | null;
   onClose: () => void;
   onSave: (threshold: number) => void;
 }) {
@@ -85,26 +91,28 @@ export default function ThresholdSheet({
           <span className="text-[13px] text-[var(--color-text-muted)] ml-1">%</span>
         </div>
 
-        {/* TODO: 后端暂无更新持仓阈值的接口，接好 PATCH /portfolio/:id/holdings/:holdingId 后删掉这行提示 */}
-        <span className="text-[12px] text-[var(--color-amber)]">
-          后端接口未接入，修改暂不生效
-        </span>
+        {error && (
+          <span className="text-[12px] text-[var(--color-red)]">
+            保存失败：{error}
+          </span>
+        )}
 
         <div className="flex gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 h-[48px] rounded-[14px] border border-[var(--color-border)] text-[15px] font-medium text-[var(--color-text-primary)]"
+            disabled={saving}
+            className="flex-1 h-[48px] rounded-[14px] border border-[var(--color-border)] text-[15px] font-medium text-[var(--color-text-primary)] disabled:opacity-40"
           >
             取消
           </button>
           <button
             type="button"
-            disabled={!valid}
+            disabled={!valid || saving}
             onClick={() => onSave(parsed)}
             className="flex-1 h-[48px] rounded-[14px] bg-[var(--color-primary)] text-white text-[15px] font-semibold shadow-primary disabled:opacity-40 disabled:shadow-none"
           >
-            保存
+            {saving ? "保存中…" : "保存"}
           </button>
         </div>
       </div>
