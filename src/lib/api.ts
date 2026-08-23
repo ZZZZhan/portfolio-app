@@ -117,6 +117,9 @@ export interface HoldingDetail {
     symbol: string;
     name: string;
     type: AssetType; // Prisma Asset.type
+    // 后端 include: { asset: true } 一直有返回，编辑组合回填时必须带上 ——
+    // 少了它提交回去会丢交易所，行情源前缀（sh/sz/of）就拼错了
+    exchange: string;
   };
 }
 
@@ -235,6 +238,25 @@ export function updateHoldingThreshold(
   );
 }
 
+/** 全量修改组合（名称 / 金额 / 持仓，含增删标的；userId 由后端从 session 取） */
+export function updatePortfolio(
+  portfolioId: number,
+  payload: Partial<CreatePortfolioPayload>,
+) {
+  return fetchJson<{ message: string }>(`/portfolio/${portfolioId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+/** 删除组合。后端级联删掉其持仓、交易记录与历史快照，不可恢复 */
+export function deletePortfolio(portfolioId: number) {
+  return fetchJson<{ message: string }>(`/portfolio/${portfolioId}`, {
+    method: 'DELETE',
+  });
+}
+
 /** 首页：组合列表 + 各组合最新快照（聚合） */
 export async function getHomeData() {
   const portfolios = await getPortfolios();
@@ -333,6 +355,35 @@ export function useUpdateHoldingThreshold(portfolioId: number) {
     }) => updateHoldingThreshold(portfolioId, holdingId, rebalanceThreshold),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['portfolio', portfolioId] });
+    },
+  });
+}
+
+/** 改组合：持仓配比变了，快照里的偏离度也要跟着重算，故连快照/交易缓存一起失效 */
+export function useUpdatePortfolio(portfolioId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Partial<CreatePortfolioPayload>) =>
+      updatePortfolio(portfolioId, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['portfolio', portfolioId] });
+      void qc.invalidateQueries({ queryKey: ['snapshot', portfolioId] });
+      void qc.invalidateQueries({ queryKey: ['trades', portfolioId] });
+      void qc.invalidateQueries({ queryKey: ['home'] });
+    },
+  });
+}
+
+/** 删组合：连同其快照/交易缓存一起清掉，首页与列表重新拉 */
+export function useDeletePortfolio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (portfolioId: number) => deletePortfolio(portfolioId),
+    onSuccess: (_data, portfolioId) => {
+      qc.removeQueries({ queryKey: ['portfolio', portfolioId] });
+      qc.removeQueries({ queryKey: ['snapshot', portfolioId] });
+      qc.removeQueries({ queryKey: ['trades', portfolioId] });
+      void qc.invalidateQueries({ queryKey: ['home'] });
     },
   });
 }
