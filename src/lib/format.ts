@@ -1,9 +1,12 @@
-// 格式化层：后端数字 → 前端展示字符串（匹配原 mockData 形状）
+// 格式化层：后端数字 → 前端展示字符串
 import type {
   SnapshotView,
   PortfolioView,
   HoldingDetail,
 } from "./api";
+
+/** 再平衡提醒阈值 %（与 PortfolioForm.DEFAULT_REBALANCE_THRESHOLD 及后端兜底保持一致） */
+export const REBALANCE_ALERT_THRESHOLD = 5;
 
 // ¥1,284,650
 export function fmtMoney(n: number): string {
@@ -47,7 +50,7 @@ export function toPortfolioCard(
     completion: snap ? Math.round(snap.completion * 100) : 0,
     marketValue: snap ? fmtMoney(snap.totalMarketValue) : "¥0",
     hasAlert: snap
-      ? snap.holdings.some((h) => Math.abs(h.deviation) * 100 > 5)
+      ? snap.holdings.some((h) => Math.abs(h.deviation) * 100 > REBALANCE_ALERT_THRESHOLD)
       : false,
   };
 }
@@ -106,7 +109,7 @@ export function toPortfolioDetail(snap: SnapshotView) {
       ),
     })),
     rebalanceNeeded: snap.holdings.some(
-      (h) => Math.abs(h.deviation) * 100 > 5,
+      (h) => Math.abs(h.deviation) * 100 > REBALANCE_ALERT_THRESHOLD,
     ),
   };
 }
@@ -130,7 +133,7 @@ export function toRebalanceAlerts(
   // 按 symbol 索引持仓骨架，拿 holdingId
   const holdingBySymbol = new Map(holdings.map((h) => [h.asset.symbol, h]));
   return snap.holdings
-    .filter((h) => Math.abs(h.deviation) * 100 > 5)
+    .filter((h) => Math.abs(h.deviation) * 100 > REBALANCE_ALERT_THRESHOLD)
     .map((h) => {
       const skeleton = holdingBySymbol.get(h.symbol);
       return {

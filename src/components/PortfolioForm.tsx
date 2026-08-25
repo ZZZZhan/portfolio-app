@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { REBALANCE_ALERT_THRESHOLD } from '@/lib/format';
 import {
   useAssetSearch,
   type AssetSearchResult,
@@ -19,9 +20,8 @@ export interface PortfolioFormInitial {
   targetTotalAmount: string;
   holdings: HoldingRow[];
 }
-
-/** 偏离阈值默认值 %（与后端建组合时的兜底一致） */
-export const DEFAULT_REBALANCE_THRESHOLD = 5;
+/** 偏离阈值默认值 %（单源于 format.REBALANCE_ALERT_THRESHOLD，与后端兜底保持一致） */
+export const DEFAULT_REBALANCE_THRESHOLD = REBALANCE_ALERT_THRESHOLD;
 
 /**
  * 组合表单 —— 新建页与编辑页共用。

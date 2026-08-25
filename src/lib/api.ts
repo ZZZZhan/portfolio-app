@@ -292,9 +292,11 @@ export async function getHomeData() {
   const snapshots = await Promise.all(
     portfolios.map((p) =>
       getLatestSnapshot(p.id).catch((e) => {
-        // 401 已全局跳转，不吞；其他错误才置空并在控制台提示
+        // 401 已全局跳转，不吞；其他错误才置空并在控制台提示（开发环境可见）
         if (e instanceof Error && e.message.includes('401 unauthorized')) throw e;
-        console.warn(`getLatestSnapshot failed for portfolio ${p.id}`, e);
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`getLatestSnapshot failed for portfolio ${p.id}`, e);
+        }
         return null;
       }),
     ),

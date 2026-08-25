@@ -6,8 +6,10 @@ import { inferAdditionalFields } from 'better-auth/client/plugins';
 // 服务端与客户端分离，无法自动从 auth 实例推断，故手动声明自定义用户字段。
 // 需与后端 src/lib/auth.ts 的 user.additionalFields 保持一致。
 export const authClient = createAuthClient({
-  // 默认 baseURL 为 /api/auth（相对当前 origin），
-  // 再由 next.config 的 rewrite 代理到后端 NestJS (localhost:3001)。
+  // baseURL 保持相对路径隐式值（better-auth 默认为当前 origin + /api/auth），
+  // 通过 next.config rewrites 代理到后端 NestJS。显式传 "/api/auth" 会在 SSR 预渲染时
+  // 触发 Invalid URL，故保持默认；如需显式可使用绝对 URL：
+  // baseURL: process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth` : undefined,
   plugins: [
     inferAdditionalFields({
       user: {
