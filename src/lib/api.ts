@@ -286,22 +286,14 @@ export function deletePortfolio(portfolioId: number) {
   });
 }
 
-/** 首页：组合列表 + 各组合最新快照（聚合） */
-export async function getHomeData() {
-  const portfolios = await getPortfolios();
-  const snapshots = await Promise.all(
-    portfolios.map((p) =>
-      getLatestSnapshot(p.id).catch((e) => {
-        // 401 已全局跳转，不吞；其他错误才置空并在控制台提示（开发环境可见）
-        if (e instanceof Error && e.message.includes('401 unauthorized')) throw e;
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(`getLatestSnapshot failed for portfolio ${p.id}`, e);
-        }
-        return null;
-      }),
-    ),
+/** 首页：组合列表 + 各组合最新快照（聚合）—— 后端 GET /portfolio/home 单次返回，替代前端 1+N */
+export async function getHomeData(): Promise<{
+  portfolios: PortfolioView[];
+  snapshots: (SnapshotView | null)[];
+}> {
+  return fetchJson<{ portfolios: PortfolioView[]; snapshots: (SnapshotView | null)[] }>(
+    `/portfolio/home`,
   );
-  return { portfolios, snapshots };
 }
 
 // ===== React Query hooks =====
