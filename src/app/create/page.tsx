@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeftIcon } from '@/components/Icons';
 import PortfolioForm from '@/components/PortfolioForm';
 import { createPortfolio } from '@/lib/api';
 
 export default function CreatePortfolioPage() {
   const router = useRouter();
+  const qc = useQueryClient();
 
   return (
     <div className="phone-frame">
@@ -39,7 +41,10 @@ export default function CreatePortfolioPage() {
           errorPrefix="创建失败"
           onSubmit={async (payload) => {
             await createPortfolio(payload);
+            await qc.invalidateQueries({ queryKey: ['home'] });
+            await qc.invalidateQueries({ queryKey: ['portfolios'] });
             router.push('/');
+            router.refresh();
           }}
         />
       </div>

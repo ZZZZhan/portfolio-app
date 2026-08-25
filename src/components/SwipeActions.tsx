@@ -39,21 +39,23 @@ export default function SwipeActions({
   children: ReactNode;
 }) {
   const maxOffset = actions.length * ACTION_WIDTH;
-
   const [dragOffset, setDragOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
-  // 一次手势的起点、起始位移；axis 一旦锁定就不再改判
   const gesture = useRef<{
     x: number;
     y: number;
     from: number;
     axis: "none" | "x" | "y";
   } | null>(null);
-  // 横向拖动后紧跟的那次 click 要吞掉，否则会误触内容里的链接
   const swallowClick = useRef(false);
+  const rafRef = useRef<number | null>(null);
 
-  // 拖拽中跟手，松手后由 open 决定终态（带过渡动画）
   const offset = dragging ? dragOffset : open ? maxOffset : 0;
+
+  // 空操作列表：不进入手势逻辑
+  if (maxOffset === 0) {
+    return <div className={`relative shrink-0 overflow-hidden rounded-[14px] shadow-card ${className}`}>{children}</div>;
+  }
 
   function handlePointerDown(e: PointerEvent<HTMLDivElement>) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -76,13 +78,14 @@ export default function SwipeActions({
     if (g.axis === "none") {
       if (Math.abs(dx) < AXIS_LOCK && Math.abs(dy) < AXIS_LOCK) return;
       g.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
-      if (g.axis === "y") return; // 纵向为主：本次手势整个交还给页面滚动
+      if (g.axis === "y") return;
       e.currentTarget.setPointerCapture(e.pointerId);
       setDragging(true);
     }
 
-    // 左滑时 dx 为负 → 位移变大；两端夹住不越界
-    setDragOffset(Math.min(maxOffset, Math.max(0, g.from - dx)));
+    const next = Math.min(maxOffset, Math.max(0, g.from - dx));
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => setDragOffset(next));
   }
 
   function handlePointerEnd(e: PointerEvent<HTMLDivElement>) {

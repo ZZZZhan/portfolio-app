@@ -20,13 +20,13 @@ export default function EditPortfolioPage({
 }) {
   const { id } = use(params);
   const portfolioId = Number(id);
+  const isValidId = Number.isFinite(portfolioId) && portfolioId > 0;
   const router = useRouter();
 
-  const { data: portfolio, isLoading } = usePortfolioDetail(portfolioId);
+  const { data: portfolio, isLoading } = usePortfolioDetail(isValidId ? portfolioId : null);
   // 交易笔数只用于「移除标的会连带删掉 N 笔交易」的提示，拿不到不阻塞编辑
-  const { data: trades } = usePortfolioTrades(portfolioId);
+  const { data: trades } = usePortfolioTrades(isValidId ? portfolioId : null);
   const updatePortfolio = useUpdatePortfolio(portfolioId);
-
   const initial = useMemo(() => {
     if (!portfolio) return null;
     return {
@@ -52,6 +52,17 @@ export default function EditPortfolioPage({
     }
     return counts;
   }, [trades]);
+
+  if (!isValidId) {
+    return (
+      <div className="phone-frame">
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-8 gap-3">
+          <p className="text-[14px] text-[var(--color-text-muted)]">无效的组合 ID</p>
+          <Link href="/" className="text-[14px] text-[var(--color-primary)]">返回首页</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="phone-frame">

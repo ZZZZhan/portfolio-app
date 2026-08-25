@@ -1,6 +1,5 @@
 // 格式化层：后端数字 → 前端展示字符串（匹配原 mockData 形状）
 import type {
-  HoldingView,
   SnapshotView,
   PortfolioView,
   HoldingDetail,
@@ -8,18 +7,21 @@ import type {
 
 // ¥1,284,650
 export function fmtMoney(n: number): string {
+  if (!Number.isFinite(n)) return "¥0";
   const sign = n < 0 ? "-" : "";
   return `${sign}¥${Math.abs(Math.round(n)).toLocaleString("en-US")}`;
 }
 
 // +¥3,280 / -¥3,280
 export function fmtSignedMoney(n: number): string {
+  if (!Number.isFinite(n)) return "¥0";
   const sign = n > 0 ? "+" : n < 0 ? "-" : "";
   return `${sign}¥${Math.abs(Math.round(n)).toLocaleString("en-US")}`;
 }
 
 // +2.74% / -2.74%  (输入是小数 0.0274)
 export function fmtPct(ratio: number): string {
+  if (!Number.isFinite(ratio)) return "0.00%";
   const pct = ratio * 100;
   const sign = pct > 0 ? "+" : pct < 0 ? "" : "";
   return `${sign}${pct.toFixed(2)}%`;
@@ -27,7 +29,7 @@ export function fmtPct(ratio: number): string {
 
 // +1.9% / null（今日涨跌，M2 暂用 profitRate 占位）
 export function fmtTodayChange(ratio?: number): string | null {
-  if (ratio == null || ratio === 0) return null;
+  if (ratio == null || !Number.isFinite(ratio) || ratio === 0) return null;
   return fmtPct(ratio);
 }
 

@@ -14,26 +14,55 @@ interface UnifiedResponse<T> {
 let redirectingToLogin = false;
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    cache: 'no-store',
-    credentials: 'include', // 携带 better-auth 会话 cookie
-  });
-  // 未登录/会话失效：后端全局 AuthGuard 返回 401，统一跳登录页
-  if (res.status === 401 && typeof window !== 'undefined') {
-    if (!redirectingToLogin) {
-      redirectingToLogin = true;
-      window.location.href = '/login';
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      cache: 'no-store',
+      credentials: 'include', // 携带 better-auth 会话 cookie
+      signal: init?.signal ?? controller.signal,
+      headers: {
+        ...(init?.body != null ? { 'Content-Type': 'application/json' } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+    // 未登录/会话失效：后端全局 AuthGuard 返回 401，统一跳登录页
+    if (res.status === 401 && typeof window !== 'undefined') {
+      if (!redirectingToLogin) {
+        redirectingToLogin = true;
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = '/login';
+        // 2s 后重置，允许后续 401 再次触发跳转（避免 SPA 内一次性锁死）
+        setTimeout(() => {
+          redirectingToLogin = false;
+        }, 2000);
+      }
+      throw new Error(`401 unauthorized @ ${path}`);
     }
-    throw new Error(`401 unauthorized @ ${path}`);
+    if (!res.ok) {
+      // 优先透传后端 body.message，而非仅 statusText
+      let backendMsg: string | null = null;
+      try {
+        const errBody = (await res.clone().json()) as Partial<UnifiedResponse<unknown>>;
+        if (typeof errBody?.message === 'string' && errBody.message) backendMsg = errBody.message;
+      } catch {}
+      throw new Error(backendMsg ?? `${res.status} ${res.statusText} @ ${path}`);
+    }
+    const body = (await res.json()) as UnifiedResponse<T>;
+    // 业务错误码非 0 也视为失败
+    if (body.code !== 0) {
+      throw new Error(body.message || `code ${body.code} @ ${path}`);
+    }
+    return body.data as T;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error(`请求超时 @ ${path}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} @ ${path}`);
-  const body = (await res.json()) as UnifiedResponse<T>;
-  // 业务错误码非 0 也视为失败（后续可扩展）
-  if (body.code !== 0) {
-    throw new Error(body.message || `code ${body.code} @ ${path}`);
-  }
-  return body.data as T;
 }
 
 // ===== 后端返回类型 =====
@@ -261,7 +290,14 @@ export function deletePortfolio(portfolioId: number) {
 export async function getHomeData() {
   const portfolios = await getPortfolios();
   const snapshots = await Promise.all(
-    portfolios.map((p) => getLatestSnapshot(p.id).catch(() => null)),
+    portfolios.map((p) =>
+      getLatestSnapshot(p.id).catch((e) => {
+        // 401 已全局跳转，不吞；其他错误才置空并在控制台提示
+        if (e instanceof Error && e.message.includes('401 unauthorized')) throw e;
+        console.warn(`getLatestSnapshot failed for portfolio ${p.id}`, e);
+        return null;
+      }),
+    ),
   );
   return { portfolios, snapshots };
 }
@@ -281,6 +317,10 @@ export function useAssetSearch(keyword: string, debounceMs = 300) {
     queryFn: () => searchAssets(debounced),
     enabled: debounced.length > 0,
     staleTime: 60 * 1000, // 同词 60s 内不重复打网
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes('401 unauthorized')) return false;
+      return failureCount < 2;
+    },
   });
 }
 
@@ -289,6 +329,10 @@ export function usePortfolios() {
   return useQuery({
     queryKey: ['portfolios'],
     queryFn: () => getPortfolios(),
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes('401 unauthorized')) return false;
+      return failureCount < 2;
+    },
   });
 }
 
@@ -297,7 +341,11 @@ export function useLatestSnapshot(portfolioId: number | null) {
   return useQuery({
     queryKey: ['snapshot', portfolioId],
     queryFn: () => getLatestSnapshot(portfolioId as number),
-    enabled: portfolioId != null,
+    enabled: portfolioId != null && Number.isFinite(portfolioId),
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes('401 unauthorized')) return false;
+      return failureCount < 2;
+    },
   });
 }
 
@@ -306,7 +354,11 @@ export function usePortfolioDetail(portfolioId: number | null) {
   return useQuery({
     queryKey: ['portfolio', portfolioId],
     queryFn: () => getPortfolioDetail(portfolioId as number),
-    enabled: portfolioId != null,
+    enabled: portfolioId != null && Number.isFinite(portfolioId),
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes('401 unauthorized')) return false;
+      return failureCount < 2;
+    },
   });
 }
 
@@ -315,9 +367,14 @@ export function usePortfolioTrades(portfolioId: number | null) {
   return useQuery({
     queryKey: ['trades', portfolioId],
     queryFn: () => getPortfolioTrades(portfolioId as number),
-    enabled: portfolioId != null,
+    enabled: portfolioId != null && Number.isFinite(portfolioId),
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes('401 unauthorized')) return false;
+      return failureCount < 2;
+    },
   });
 }
+
 
 /** 录入交易：成功后失效该组合的快照+交易列表缓存 */
 export function useRecordTrade(portfolioId: number) {

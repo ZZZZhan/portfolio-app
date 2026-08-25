@@ -34,6 +34,7 @@ export default function PortfolioDetailPage({
 }) {
   const { id } = use(params);
   const portfolioId = Number(id);
+  const isValidId = Number.isFinite(portfolioId) && portfolioId > 0;
   const router = useRouter();
 
   // 左滑：同一时刻只展开一行
@@ -43,13 +44,12 @@ export default function PortfolioDetailPage({
     null,
   );
   const updateThreshold = useUpdateHoldingThreshold(portfolioId);
-
   // 持仓骨架（建组合时已定，必有数据）—— 不依赖快照
   const { data: portfolio, isLoading: loadingPortfolio } =
-    usePortfolioDetail(portfolioId);
+    usePortfolioDetail(isValidId ? portfolioId : null);
   // 快照（市值盈亏叠加，可能为空）
-  const { data: snap } = useLatestSnapshot(portfolioId);
-  const { data: trades } = usePortfolioTrades(portfolioId);
+  const { data: snap } = useLatestSnapshot(isValidId ? portfolioId : null);
+  const { data: trades } = usePortfolioTrades(isValidId ? portfolioId : null);
 
   // 快照转视图（含市值/配比/盈亏）
   const detail = snap ? toPortfolioDetail(snap) : null;
@@ -58,6 +58,17 @@ export default function PortfolioDetailPage({
   const snapBySymbol = new Map(
     (snap?.holdings ?? []).map((h) => [h.symbol, h]),
   );
+
+  if (!isValidId) {
+    return (
+      <div className="phone-frame">
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-8 gap-3">
+          <p className="text-[14px] text-[var(--color-text-muted)]">无效的组合 ID</p>
+          <Link href="/" className="text-[14px] text-[var(--color-primary)]">返回首页</Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loadingPortfolio) {
     return (

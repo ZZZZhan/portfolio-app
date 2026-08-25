@@ -29,15 +29,18 @@ export default function AddTradePage({
   const router = useRouter();
   const { id } = use(params);
   const portfolioId = Number(id);
+  const isValidId = Number.isFinite(portfolioId) && portfolioId > 0;
   const sp = useSearchParams();
 
-  const holdingId = Number(sp.get("holdingId"));
+  // holdingId 可能缺失（直接访问 add-trade），显式校验而非 Number(null) === 0 的隐式
+  const holdingIdRaw = sp.get("holdingId");
+  const holdingId = holdingIdRaw != null && holdingIdRaw !== '' ? Number(holdingIdRaw) : null;
+  const holdingIdValid = holdingId != null && Number.isFinite(holdingId) && holdingId > 0;
   const assetName = sp.get("name") ?? "";
   const assetSymbol = sp.get("symbol") ?? "";
   const assetType = sp.get("assetType") ?? "";
 
   const recordTrade = useRecordTrade(portfolioId);
-
   const [type, setType] = useState<TradeType>(
     assetType === "FUND" ? "OTC" : "EXCHANGE",
   );
@@ -58,11 +61,9 @@ export default function AddTradePage({
   // 场外补录历史：填了净值就能折算份额
   const otcShares =
     !isExchange && amount && navPrice
-      ? (Number(amount) / Number(navPrice)).toFixed(4)
-      : "";
-
   const canSubmit =
-    !!holdingId &&
+    isValidId &&
+    holdingIdValid &&
     !recordTrade.isPending &&
     (isExchange
       ? Number(shares) > 0 && Number(price) > 0
@@ -83,11 +84,33 @@ export default function AddTradePage({
           }),
     };
     try {
-      await recordTrade.mutateAsync({ holdingId, payload });
+      await recordTrade.mutateAsync({ holdingId: holdingId as number, payload });
       router.push(`/portfolio/${portfolioId}`);
     } catch (e) {
-      setError((e as Error).message);
+      setError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  if (!isValidId) {
+    return (
+      <div className="phone-frame">
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-8 gap-3">
+          <p className="text-[14px] text-[var(--color-text-muted)]">无效的组合 ID</p>
+          <Link href="/" className="text-[14px] text-[var(--color-primary)]">返回首页</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!holdingIdValid) {
+    return (
+      <div className="phone-frame">
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-8 gap-3">
+          <p className="text-[14px] text-[var(--color-text-muted)]">缺少持仓信息，请从组合详情页进入</p>
+          <Link href={`/portfolio/${portfolioId}`} className="text-[14px] text-[var(--color-primary)]">返回组合</Link>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -14,15 +14,29 @@ export default function RebalancePage({
 }) {
   const { id } = use(params);
   const portfolioId = Number(id);
+  const isValidId = Number.isFinite(portfolioId) && portfolioId > 0;
 
   const { data: portfolio, isLoading: loadingPortfolio } =
-    usePortfolioDetail(portfolioId);
+    usePortfolioDetail(isValidId ? portfolioId : null);
   const { data: snap, isLoading: loadingSnap } =
-    useLatestSnapshot(portfolioId);
+    useLatestSnapshot(isValidId ? portfolioId : null);
 
   const loading = loadingPortfolio || loadingSnap;
   const alerts =
     portfolio && snap ? toRebalanceAlerts(snap, portfolio.holdings) : [];
+  const hasNoSnapshot = isValidId && !loading && !!portfolio && !snap;
+
+  if (!isValidId) {
+    return (
+      <div className="phone-frame">
+        <div className="flex-1 flex flex-col items-center justify-center px-5 py-8 gap-3">
+          <p className="text-[14px] text-[var(--color-text-muted)]">无效的组合 ID</p>
+          <Link href="/" className="text-[14px] text-[var(--color-primary)]">返回首页</Link>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="phone-frame">
@@ -50,10 +64,13 @@ export default function RebalancePage({
             以下持仓偏离目标配置，建议调整
           </span>
         </div>
-
         {/* Alert list */}
         {loading ? (
           <div className="text-center text-[13px] text-[var(--color-text-muted)] py-8">加载中...</div>
+        ) : hasNoSnapshot ? (
+          <div className="text-center text-[13px] text-[var(--color-text-muted)] py-8">
+            暂无快照，请先录入交易或等待行情更新
+          </div>
         ) : alerts.length === 0 ? (
           <div className="text-center text-[13px] text-[var(--color-text-muted)] py-8">
             所有持仓均在阈值内

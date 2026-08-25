@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /** 常用偏离阈值快捷值 % */
 const PRESETS = [3, 5, 8, 10];
@@ -29,18 +29,29 @@ export default function ThresholdSheet({
   onSave: (threshold: number) => void;
 }) {
   const [input, setInput] = useState(String(value));
+  useEffect(() => {
+    setInput(String(value));
+  }, [value]);
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const parsed = parseFloat(input);
   const valid = Number.isFinite(parsed) && parsed >= 0 && parsed <= 100;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={`修改 ${assetName} 偏离阈值`}>
       {/* 遮罩 */}
       <button
         type="button"
         aria-label="关闭"
         onClick={onClose}
-        className="absolute inset-0 bg-black/30"
+        disabled={saving}
+        className="absolute inset-0 bg-black/30 disabled:cursor-not-allowed"
       />
 
       {/* 面板 */}
@@ -60,6 +71,7 @@ export default function ThresholdSheet({
             <button
               key={p}
               type="button"
+              aria-pressed={parsed === p}
               onClick={() => setInput(String(p))}
               className={`flex-1 h-[38px] rounded-[10px] border text-[14px] font-medium transition-colors ${
                 parsed === p
@@ -92,7 +104,7 @@ export default function ThresholdSheet({
         </div>
 
         {error && (
-          <span className="text-[12px] text-[var(--color-red)]">
+          <span role="alert" aria-live="assertive" className="text-[12px] text-[var(--color-red)]">
             保存失败：{error}
           </span>
         )}

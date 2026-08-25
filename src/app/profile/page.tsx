@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
@@ -45,9 +44,11 @@ export default function ProfilePage() {
   }
   // session 就绪且用户尚未编辑时，用服务端值填充输入框
   useEffect(() => {
-    if (sendkeyTouched) return;
-    setSendkeyDraft(user?.sendkey ?? "");
-  }, [user?.sendkey, sendkeyTouched]);
+    if (sendkeyTouched || isPending) return;
+    if (user?.sendkey !== undefined && sendkeyDraft === "") {
+      setSendkeyDraft(user.sendkey ?? "");
+    }
+  }, [user?.sendkey, sendkeyTouched, isPending, sendkeyDraft]);
 
   async function handleLogout() {
     setLoggingOut(true);

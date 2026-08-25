@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAssetSearch,
   type AssetSearchResult,
@@ -58,6 +58,20 @@ export default function PortfolioForm({
   );
   const [holdings, setHoldings] = useState<HoldingRow[]>(initial.holdings);
 
+  // 编辑页 initial 异步到达（portfolio 详情回填），需同步到本地表单
+  const prevInitialRef = useRef(initial);
+  useEffect(() => {
+    const prev = prevInitialRef.current;
+    const wasEmpty = prev.holdings.length === 0 && prev.name === '' && prev.targetTotalAmount === '';
+    const nowHasData = initial.holdings.length > 0 || initial.name !== '';
+    if (wasEmpty && nowHasData) {
+      setName(initial.name);
+      setTargetTotalAmount(initial.targetTotalAmount);
+      setHoldings(initial.holdings);
+    }
+    prevInitialRef.current = initial;
+  }, [initial]);
+
   // 搜索输入 + 候选下拉
   const [keyword, setKeyword] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -69,16 +83,16 @@ export default function PortfolioForm({
   const [pendingRemove, setPendingRemove] = useState<HoldingRow | null>(null);
 
   const total = holdings.reduce((s, h) => s + h.targetRatio, 0);
+  const isTotalValid = Math.abs(total - 100) < 0.01;
   const totalColor =
-    total === 100 ? 'text-[var(--color-green)]' : 'text-[var(--color-red)]';
+    isTotalValid ? 'text-[var(--color-green)]' : 'text-[var(--color-red)]';
 
   const canSubmit =
-    total === 100 &&
+    isTotalValid &&
     name.trim().length > 0 &&
     Number(targetTotalAmount) > 0 &&
     holdings.length > 0 &&
     !submitting;
-
   function addHolding(item: AssetSearchResult) {
     // 去重：同 symbol 不重复加
     if (holdings.some((h) => h.symbol === item.symbol)) {
@@ -150,7 +164,7 @@ export default function PortfolioForm({
         holdings: payload,
       });
     } catch (e) {
-      setError((e as Error).message);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +213,9 @@ export default function PortfolioForm({
 
         {/* 搜索输入框 */}
         <div className="relative">
+          <label htmlFor="asset-search" className="sr-only">搜索标的</label>
           <input
+            id="asset-search"
             type="text"
             value={keyword}
             onChange={(e) => {
@@ -207,12 +223,20 @@ export default function PortfolioForm({
               setShowDropdown(true);
             }}
             onFocus={() => setShowDropdown(true)}
-            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+            onBlur={(e) => {
+              // 若焦点移入下拉按钮，不关闭；否则关闭
+              const next = e.relatedTarget as HTMLElement | null;
+              if (next?.closest('[data-asset-option]')) return;
+              setShowDropdown(false);
+            }}
             placeholder="搜索标的代码或名称（如 510300 / 茅台）"
+            autoComplete="off"
+            aria-controls="asset-search-list"
+            aria-haspopup="listbox"
             className="w-full rounded-[12px] bg-white px-4 h-[52px] text-[15px] outline-none border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
           />
           {showDropdown && keyword.trim().length > 0 && (
-            <div className="absolute z-10 mt-1 w-full rounded-[12px] bg-white border border-[var(--color-border)] shadow-lg overflow-hidden max-h-[240px] overflow-y-auto">
+            <div id="asset-search-list" role="listbox" className="absolute z-10 mt-1 w-full rounded-[12px] bg-white border border-[var(--color-border)] shadow-lg overflow-hidden max-h-[240px] overflow-y-auto">
               {search.isFetching ? (
                 <div className="px-4 py-3 text-[13px] text-[var(--color-text-muted)]">
                   搜索中…
@@ -225,6 +249,9 @@ export default function PortfolioForm({
                 candidates.map((c) => (
                   <button
                     key={`${c.symbol}-${c.assetType}`}
+                    data-asset-option
+                    role="option"
+                    aria-selected={false}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       addHolding(c);
@@ -273,9 +300,10 @@ export default function PortfolioForm({
                     type="number"
                     min="0"
                     max="100"
+                    step="0.1"
                     value={h.targetRatio}
                     onChange={(e) =>
-                      updateRatio(h.symbol, parseInt(e.target.value) || 0)
+                      updateRatio(h.symbol, parseFloat(e.target.value) || 0)
                     }
                     className="w-14 text-right text-[15px] font-mono font-bold text-[var(--color-primary)] outline-none bg-transparent"
                     aria-label={`${h.name} 目标配比`}
@@ -327,27 +355,26 @@ export default function PortfolioForm({
             </span>
           </div>
         ) : null}
-
         {/* Progress bar */}
-        <div className="relative w-full h-1.5 rounded-full bg-[var(--color-track)]">
+        <div className="relative w-full h-1.5 rounded-full bg-[var(--color-track)]" role="progressbar" aria-valuenow={Math.min(total, 100)} aria-valuemin={0} aria-valuemax={100}>
           <div
-            className={`h-full rounded-full ${total === 100 ? 'bg-[var(--color-green)]' : 'bg-[var(--color-amber)]'}`}
+            className={`h-full rounded-full ${isTotalValid ? 'bg-[var(--color-green)]' : 'bg-[var(--color-amber)]'}`}
             style={{ width: `${Math.min(total, 100)}%` }}
           />
         </div>
-        {total === 100 ? (
-          <span className="text-[12px] text-[var(--color-green)]">
+        {isTotalValid ? (
+          <span className="text-[12px] text-[var(--color-green)]" role="status" aria-live="polite">
             配比合规 ✓
           </span>
         ) : (
-          <span className="text-[12px] text-[var(--color-amber)]">
-            需调整至100%（当前 {total}%）
+          <span className="text-[12px] text-[var(--color-amber)]" role="alert">
+            需调整至100%（当前 {total.toFixed(1)}%）
           </span>
         )}
       </div>
 
       {error && (
-        <span className="text-[12px] text-[var(--color-red)]">
+        <span role="alert" aria-live="assertive" className="text-[12px] text-[var(--color-red)]">
           {errorPrefix}：{error}
         </span>
       )}
