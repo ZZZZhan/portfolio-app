@@ -1,14 +1,47 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
 import { BellIcon, PlusIcon } from '@/components/Icons';
 import { useHomeData } from '@/lib/api';
+import { useSession } from '@/lib/auth-client';
 import { toHomeOverview, toPortfolioCard } from '@/lib/format';
 
 export default function HomePage() {
-  const { data, isLoading } = useHomeData();
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+  const { data, isLoading, isError, error } = useHomeData();
 
+  // 客户端兜底：proxy/middleware 漏掉时，未登录也跳登录（避免白屏闪烁）
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.replace('/login');
+    }
+  }, [session, isPending, router]);
+
+  // 会话校验中或已判定未登录（即将跳转），先不渲染业务数据
+  if (isPending || !session) {
+    return (
+      <div className="phone-frame">
+        <div className="flex-1 flex items-center justify-center">
+          <span className="text-[13px] text-[var(--color-text-muted)]">加载中...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 后端 401 也会通过 api.ts 跳登录，这里额外处理避免展示错误态
+  if (isError && error instanceof Error && error.message.includes('401 unauthorized')) {
+    return (
+      <div className="phone-frame">
+        <div className="flex-1 flex items-center justify-center">
+          <span className="text-[13px] text-[var(--color-text-muted)]">跳转登录中...</span>
+        </div>
+      </div>
+    );
+  }
   const portfolios = data?.portfolios ?? [];
   const snapshots = data?.snapshots ?? [];
   const loading = isLoading;

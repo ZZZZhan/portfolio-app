@@ -35,5 +35,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // 覆盖所有页面路由（含 login/register 以便已登录时踢回首页），排除 api 与静态资源
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)'],
+  // 显式包含 "/" 确保首页未登录时被拦截
+  matcher: ['/', '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)'],
 };
